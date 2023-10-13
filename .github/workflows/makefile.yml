@@ -1,52 +1,37 @@
-# LuCI Alpha Theme
-# Copyright 2022 derisamedia <yuimizuno86@gmail.com>
-#
-# Licensed under the Apache License v2.0
-# http://www.apache.org/licenses/LICENSE-2.0
+name: Build IPK
 
-include $(TOPDIR)/rules.mk
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
 
-THEME_NAME:=alpha-mod
-THEME_TITLE:=Alpha-Mod
-
-PKG_NAME:=luci-theme-$(THEME_NAME)
-PKG_VERSION:=0.3.8-beta
-PKG_RELEASE:=8
-
-include $(INCLUDE_DIR)/package.mk
-
-define Package/luci-theme-$(THEME_NAME)
-  SECTION:=luci
-  CATEGORY:=LuCI
-  SUBMENU:=9. Themes
-  DEPENDS:=+libc
-  TITLE:=Tema LuCi - $(THEME_TITLE)
-  URL:=http://facebook.com/derisamedia/
-  PKGARCH:=all
-endef
-
-define Build/Configure
-endef
-
-define Build/Compile
-endef
-
-define Package/luci-theme-$(THEME_NAME)/install
-	$(INSTALL_DIR) $(1)/etc/uci-defaults
-	echo "uci set luci.themes.$(THEME_TITLE)=/luci-static/$(THEME_NAME); uci commit luci" > $(1)/etc/uci-defaults/30-luci-theme-$(THEME_NAME)
-	$(INSTALL_DIR) $(1)/www/luci-static/$(THEME_NAME)
-	$(CP) -a ./luasrc/* $(1)/www/luci-static/$(THEME_NAME)/ 2>/dev/null || true
-	$(INSTALL_DIR) $(1)/usr/lib/lua/luci/view/themes/$(THEME_NAME)
-	$(CP) -a ./template/* $(1)/usr/lib/lua/luci/view/themes/$(THEME_NAME)/ 2>/dev/null || true
-	$(INSTALL_DIR) $(1)/www/luci-static/resources
-	$(CP) -a ./js/* $(1)/www/luci-static/resources/ 2>/dev/null || true
-endef
-
-define Package/luci-theme-$(THEME_NAME)/postinst
-#!/bin/sh
-[ -n "$${IPKG_INSTROOT}" ] || {
-	( . /etc/uci-defaults/30-luci-theme-$(THEME_NAME) ) && rm -f /etc/uci-defaults/30-luci-theme-$(THEME_NAME)
-}
-endef
-
-$(eval $(call BuildPackage,luci-theme-$(THEME_NAME)))
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential git make unzip
+      - name: Clone luci-app-core
+        run: |
+          git clone https://github.com/openwrt/luci-app-core.git
+      - name: Build luci-alpha-mod
+        run: |
+          cd luci-app-core
+          git submodule update --init --recursive
+          cd ../luci-alpha-mod
+          make
+      - name: Create ipk file
+        run: |
+          cd luci-app-core
+          make package/luci-app-alpha-mod/ipk
+      - name: Upload ipk file
+        uses: actions/upload-artifact@v2
+        with:
+          name: luci-app-alpha-mod.ipk
+          path: luci-app-core/package/luci-app-alpha-mod/luci-app-alpha-mod_1.0.0-1_all.ipk
