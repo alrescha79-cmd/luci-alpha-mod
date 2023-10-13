@@ -1,0 +1,37 @@
+name: Coba Build IPK 
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential git make unzip
+      - name: Clone luci-app-core
+        run: |
+          git clone https://github.com/openwrt/luci-app-core.git
+      - name: Build luci-alpha-mod
+        run: |
+          cd luci-app-core
+          git submodule update --init --recursive
+          cd ../luci-alpha-mod
+          make
+      - name: Create ipk file
+        run: |
+          cd luci-app-core
+          make package/luci-app-alpha-mod/ipk
+      - name: Upload ipk file
+        uses: actions/upload-artifact@v2
+        with:
+          name: luci-app-alpha-mod.ipk
+          path: luci-app-core/package/luci-app-alpha-mod/luci-app-alpha-mod_1.0.0-1_all.ipk
